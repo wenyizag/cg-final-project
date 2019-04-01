@@ -71,7 +71,7 @@
                 container = document.createElement( 'div' );
                 document.body.appendChild( container );
                 camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 2000 );
-                camera.position.set( 100, 200, 300 );
+                camera.position.set( 10, 90, 300 );
                 controls = new THREE.OrbitControls( camera );
                 controls.target.set( 0, 100, 0 );
                 controls.update();
@@ -148,8 +148,12 @@
         datGui.addColor(gui,"pointLight").onChange(function (e) {
             pointLight.color = new THREE.Color(e);
         });
-        datGui.add(gui, "lightY", 0, 100);
+        datGui.add(gui, "lightY", 150, 250).onChange(function (e) {
+            console.log(e);
+            pointLight.lightY = e;
+        });
         datGui.add(gui,"distance",0,100).onChange(function (e) {
+            console.log(e);
             pointLight.distance = e;
         });
         datGui.add(gui,"intensity",0,5).onChange(function (e) {
@@ -168,12 +172,12 @@
         var bulbGeometry = new THREE.SphereBufferGeometry( 1, 16, 8 );
         pointLight = new THREE.PointLight("#ffffff");
         bulbMat = new THREE.MeshStandardMaterial( {
-            emissive: 0xffffee,
+            emissive: "#111111",
             emissiveIntensity: 1,
             color: 0x000000
         } );
         pointLight.add( new THREE.Mesh( bulbGeometry, bulbMat ) );
-        pointLight.position.set(40, 90, 130);
+        pointLight.position.set(20, 10, 130);
 
         //告诉平行光需要开启阴影投射
         pointLight.castShadow = true;
@@ -193,9 +197,9 @@
         var delta = clock.getDelta();
         if ( mixer ) mixer.update( delta );
 
-        var time = Date.now() * 0.0005;
+        var time = Date.now() * 0.0008;
         bulbMat.emissiveIntensity = pointLight.intensity / Math.pow( 0.02, 2.0 );
-        pointLight.position.y = Math.cos( time ) * 75 + 90;
+        pointLight.position.y = Math.cos( time ) * 75 + 10;
 
         renderer.render( scene, camera );
     }
