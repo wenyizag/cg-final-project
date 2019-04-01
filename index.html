@@ -42,12 +42,12 @@
         <script src="js/three.min.js"></script>
 
         <script src="js/WebGL.js"></script>
-        <!-- <script src="js/stats.min.js"></script> -->
-        <!-- <script src="js/GLTFLoader.js"></script> -->
+
 
         <script src="js/inflate.min.js"></script>
         <script src="js/FBXLoader.js"></script>
         <script src="js/OrbitControls.js"></script>
+        <script src="js/tween.min.js"></script>
 
         <script src="js/dat.gui.min.js"></script>
 
@@ -57,41 +57,28 @@
             }
             var container, controls;
             var camera, scene, renderer, light;
-            // var camera, scene, renderer,
-                // bulbLight, bulbMat, hemiLight;
+            var krq = new THREE.Object3D();
+
             var clock = new THREE.Clock();
             var mixer;
-            init();
-            initRender();
-            initGui();
-            initLight();
-            animate();
+            var mouse = new THREE.Vector2();
+            var raycaster;
+            var threshold = 0.1;
+            var spheres = [];
+            var spheresIndex = 0;
 
-            function init() {
+
+            function initScene() {
                 container = document.createElement( 'div' );
                 document.body.appendChild( container );
                 camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 2000 );
-                camera.position.set( 10, 90, 300 );
+                camera.position.set( -159, 123, 643 );
                 controls = new THREE.OrbitControls( camera );
                 controls.target.set( 0, 100, 0 );
                 controls.update();
                 scene = new THREE.Scene();
-                scene.background = new THREE.Color( 0xa0a0a0 );
-                // scene.fog = new THREE.Fog( 0xa0a0a0, 200, 1000 );
+                scene.background = new THREE.Color( "#000" );
 
-                // light = new THREE.HemisphereLight( 0xffffff, 0x444444 );
-                // light.position.set( 0, 200, 0 );
-                // scene.add( light );
-                // light = new THREE.DirectionalLight( 0xffffff );
-                // light.position.set( 0, 200, 100 );
-                // light.castShadow = true;
-                // light.shadow.camera.top = 100;
-                // light.shadow.camera.bottom = - 100;
-                // light.shadow.camera.left = - 120;
-                // light.shadow.camera.right = 120;
-                // scene.add( light );
-                // // scene.add( new THREE.CameraHelper( light.shadow.camera ) );
-                // ground
                 var mesh = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2000, 2000 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
                 mesh.rotation.x = - Math.PI / 2;
                 mesh.receiveShadow = true;
@@ -100,7 +87,27 @@
                 grid.material.opacity = 0.2;
                 grid.material.transparent = true;
                 scene.add( grid );
-                // model
+                window.addEventListener( 'resize', onWindowResize, false );
+                
+            }
+
+            
+
+            function initRaycaster() {
+                raycaster = new THREE.Raycaster();
+                raycaster.params.Points.threshold = threshold;
+            }
+            function initSphere() {
+                var sphereGeometry = new THREE.SphereBufferGeometry( 0.1, 32, 32 );
+                var sphereMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+                for ( var i = 0; i < 40; i ++ ) {
+                    var sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
+                    scene.add( sphere );
+                    spheres.push( sphere );
+                }
+            }
+
+            function initCharacter() {
                 var loader = new THREE.FBXLoader();
                 loader.load( 'model/Female Tough Walk (1).fbx', function ( fbx ) {
                     fbx.scale.set(.8,.8,.8);
@@ -117,10 +124,23 @@
                     fbx.rotateY(-100);
                     fbx.position.z = -200;
                     scene.add( fbx );
-                } );
-                window.addEventListener( 'resize', onWindowResize, false );
+                });
             }
 
+            function initSound() {
+                var listener = new THREE.AudioListener();
+                camera.add( listener );
+
+                var sound = new THREE.Audio( listener );
+
+                var audioLoader = new THREE.AudioLoader();
+                audioLoader.load('audio/music.mp3', function( buffer ) {
+                    sound.setBuffer( buffer );
+                    sound.setLoop( true );
+                    sound.setVolume( 0.3 );
+                    sound.play();
+                });
+            }
             function initRender() {
                 renderer = new THREE.WebGLRenderer({antialias: true});
                 renderer.setPixelRatio( window.devicePixelRatio );
@@ -129,16 +149,22 @@
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 默认的是，没有设置的这个清晰 THREE.PCFShadowMap
                 container.appendChild(renderer.domElement);
             }
+
     var gui;
     function initGui() {
-        //声明一个保存需求修改的相关数据的对象
         gui = {
-            ambientLight:"#111111", //环境光源
+            ambientLight:"#705b5b", //环境光源
             pointLight:"#ffffff", //点光源
             lightY: 200, //灯光y轴的位置
             distance:50, //点光源距离
             intensity:1, //灯光强度
-            visible:true //是否可见
+            visible:true, //是否可见
+            x:-159,
+            y:123,
+            z:643,
+            xx:0,
+            yy:0,
+            zz:0
         };
         var datGui = new dat.GUI();
         //将设置属性添加到gui当中，gui.add(对象，属性，最小值，最大值）
@@ -162,11 +188,29 @@
         datGui.add(gui,"visible").onChange(function (e) {
             pointLight.visible = e;
         });
+        datGui.add(gui,"x", -1000, 1000).onChange(function (e) {
+            camera.position.x = e;
+        });
+        datGui.add(gui,"y", -1000, 1000).onChange(function (e) {
+            camera.position.y = e;
+        });
+        datGui.add(gui,"z", -1000, 1000).onChange(function (e) {
+            camera.position.z = e;
+        });
+        datGui.add(gui,"xx", -1000, 1000).onChange(function (e) {
+            krq.position.x = e;
+        });
+        datGui.add(gui,"yy", -1000, 1000).onChange(function (e) {
+            krq.position.y = e;
+        });
+        datGui.add(gui,"zz", -1000, 1000).onChange(function (e) {
+            krq.position.z = e;
+        });
     }
 
     var ambientLight,pointLight, bulbMat;
     function initLight() {
-        ambientLight = new THREE.AmbientLight("#111111");
+        ambientLight = new THREE.AmbientLight("#5c3939");
         scene.add(ambientLight);
 
         var bulbGeometry = new THREE.SphereBufferGeometry( 1, 16, 8 );
@@ -178,31 +222,136 @@
         } );
         pointLight.add( new THREE.Mesh( bulbGeometry, bulbMat ) );
         pointLight.position.set(20, 10, 130);
-
-        //告诉平行光需要开启阴影投射
         pointLight.castShadow = true;
 
         scene.add(pointLight);
     }
 
+    var particle, mouseX = 0, mouseY = 0, mouseZ = -1000;
+
+    var windowHalfX = window.innerWidth / 2;
+    var windowHalfY = window.innerHeight / 2;
+
+    function initFire() {
+        var material = new THREE.SpriteMaterial( {
+            map: new THREE.CanvasTexture( generateSprite() ),
+            blending: THREE.AdditiveBlending
+        } );
+
+        for ( var i = 0; i < 40; i++ ) {
+            particle = new THREE.Sprite( material );
+            initParticle( particle, i * 10 );
+            krq.add(particle);
+        }
+
+        krq.position.set(20, 5, 130);
+        // krq.position.z = 0;
+        // krq.position.x = 80;
+        // krq.position.y = 330;        // krq.rotateZ(1);
+        scene.add(krq);
+    }
+
+    function generateSprite() {
+
+        //创建canvas并设置大小
+        var canvas = document.createElement( 'canvas' );
+        canvas.width = 10;
+        canvas.height = 10;
+
+        //得到2d，canvas
+        var context = canvas.getContext( '2d' );
+        //渐变方式
+        var gradient = context.createRadialGradient( canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2 );
+
+        gradient.addColorStop( 0, 'rgba(255,255,255,1)' );
+        gradient.addColorStop( 0.6, 'rgba(255, 162, 0, 0.5)' );
+        gradient.addColorStop( 0.8, 'rgba(230, 73, 0, 1)' );
+        gradient.addColorStop( 1, 'rgba(0,0,0,1)' );
+        //填充方式
+        context.fillStyle = gradient;
+        //填充矩形
+        context.fillRect( 0, 0, canvas.width, canvas.height );
+
+        return canvas;
+
+    }
+
+    function initParticle( particle, delay ) {
+        //粒子
+        var particle = this instanceof THREE.Sprite ? this : particle;
+        var delay = delay !== undefined ? delay : 0;
+        //粒子大小以及位置
+        particle.position.set( 0, 0, 0 );
+        particle.scale.x = particle.scale.y = Math.random() * 1 + 2;
+        //下面是一系列的动画
+        var xx = Math.random()* 800 -200;
+        var yy = -Math.cos((Math.PI/400) * xx)*900;
+        //位移
+        new TWEEN.Tween( particle.position )
+            .delay( delay )
+           // .to( { x: Math.random() * 4000 - 2000, y: Math.random() * 1000 - 500, z: Math.random() * 4000 - 2000 }, 10000 )
+            .to({x:xx,y:yy,z:Math.random()*-100 + 50},3000)
+            .start();
+        //理解为存活时间    x加一个判断
+        if(Math.abs(xx) > 150){
+            new TWEEN.Tween(particle)
+                .delay(delay)
+                .to({}, 0)
+                .onComplete(initParticle)
+                .start();
+        }else {
+            new TWEEN.Tween(particle)
+                .delay(delay)
+                .to({}, 2000)
+                .onComplete(initParticle)
+                .start();
+        }
+        //大小
+        new TWEEN.Tween( particle.scale )
+            .delay( delay )
+            .to( { x: 0.01, y: 0.01 }, 2000 )
+            .start();
+    }
+
 
     function onWindowResize() {
+        windowHalfX = window.innerWidth / 2;
+        windowHalfY = window.innerHeight / 2;
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize( window.innerWidth, window.innerHeight );
     }
-    //
-    function animate() {
-        requestAnimationFrame( animate );
+
+    function render() {
         var delta = clock.getDelta();
         if ( mixer ) mixer.update( delta );
 
         var time = Date.now() * 0.0008;
         bulbMat.emissiveIntensity = pointLight.intensity / Math.pow( 0.02, 2.0 );
         pointLight.position.y = Math.cos( time ) * 75 + 10;
+        krq.position.y = pointLight.position.y - 2;
+        TWEEN.update();
+
 
         renderer.render( scene, camera );
     }
+
+    initScene();
+    initRender();
+    initGui();
+    initLight();
+    initFire();
+    initRaycaster();
+    initCharacter();
+    initSound();
+    animate();
+
+
+    function animate() {
+        requestAnimationFrame( animate );
+        render();
+    }
+
 
         </script>
 
