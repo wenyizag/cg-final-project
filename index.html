@@ -160,13 +160,20 @@
         });
     }
 
-    var ambientLight,pointLight;
+    var ambientLight,pointLight, bulbMat;
     function initLight() {
         ambientLight = new THREE.AmbientLight("#111111");
         scene.add(ambientLight);
 
+        var bulbGeometry = new THREE.SphereBufferGeometry( 1, 16, 8 );
         pointLight = new THREE.PointLight("#ffffff");
-        pointLight.position.set(25, 50, 100);
+        bulbMat = new THREE.MeshStandardMaterial( {
+            emissive: 0xffffee,
+            emissiveIntensity: 1,
+            color: 0x000000
+        } );
+        pointLight.add( new THREE.Mesh( bulbGeometry, bulbMat ) );
+        pointLight.position.set(40, 90, 130);
 
         //告诉平行光需要开启阴影投射
         pointLight.castShadow = true;
@@ -187,7 +194,8 @@
         if ( mixer ) mixer.update( delta );
 
         var time = Date.now() * 0.0005;
-        pointLight.position.y = Math.cos( time ) * 75 + 50;
+        bulbMat.emissiveIntensity = pointLight.intensity / Math.pow( 0.02, 2.0 );
+        pointLight.position.y = Math.cos( time ) * 75 + 90;
 
         renderer.render( scene, camera );
     }
